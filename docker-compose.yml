@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: antrian_app
+    ports:
+      - "8080:80"
+      - "18081:8081"
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - WS_PORT=8081
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./public/storage/uploads:/var/www/html/public/storage/uploads
+    restart: always
+
+  db:
+    image: mysql:8.0
+    container_name: antrian_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASS:-root}
+      MYSQL_DATABASE: ${DB_NAME:-aplikasi_antrian}
+    volumes:
+      - ./database/aplikasi_antrian.sql:/docker-entrypoint-initdb.d/init.sql
+      - db_data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    restart: always
+
+volumes:
+  db_data:
