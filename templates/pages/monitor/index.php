@@ -118,12 +118,14 @@ $email = $settingsData['email'] ?? '';
 $content = ob_get_clean();
 $inlineScript = <<<JS
 var player;
-var youTubeMuted = false;
+var youTubeReady = false;
+var youTubeWasMuted = false;
 
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('youtube-player', {
         events: {
             'onReady': function(event) {
+                youTubeReady = true;
                 player.setVolume(100);
             }
         }
@@ -141,16 +143,19 @@ $(document).ready(function() {
     var isPlay = false;
 
     function muteYouTube() {
-        if (player && player.getVolume && player.getVolume() > 0) {
-            youTubeMuted = true;
-            player.mute();
+        if (player && youTubeReady) {
+            var vol = player.getVolume();
+            if (vol > 0) {
+                youTubeWasMuted = true;
+                player.mute();
+            }
         }
     }
 
     function unmuteYouTube() {
-        if (player && youTubeMuted) {
+        if (player && youTubeReady && youTubeWasMuted) {
             player.unmute();
-            youTubeMuted = false;
+            youTubeWasMuted = false;
         }
     }
 
