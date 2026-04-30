@@ -127,16 +127,21 @@ $(document).ready(function() {
         $.ajax({
             url: '/api/monitor/panggilan',
             method: 'POST',
-            async: false,
+            async: true,
             cache: false,
             dataType: 'json',
             success: function(result) {
                 if (result.success && result.data.length > 0) {
+                    var newQueues = [];
                     result.data.forEach(function(element) {
-                        if (checkQueuePanggil(element.id, queuePanggil)) return;
-                        queuePanggil.push(element);
-                        if (!isPlay) panggilAntrian();
+                        if (!checkQueuePanggil(element.id, queuePanggil)) {
+                            queuePanggil.push(element);
+                            newQueues.push(element);
+                        }
                     });
+                    if (newQueues.length > 0 && !isPlay) {
+                        panggilAntrian();
+                    }
                 }
             }
         });
@@ -147,7 +152,7 @@ $(document).ready(function() {
             url: '/api/monitor/panggilan/delete',
             method: 'POST',
             data: { id: id },
-            async: false,
+            async: true,
             cache: false,
             dataType: 'json'
         });
@@ -186,23 +191,38 @@ $(document).ready(function() {
         $(".namaLoketMonitor").text("LOKET " + value.loket);
 
         bell.currentTime = 0;
-        bell.play();
+        
+        var playPromise = bell.play();
+        if (playPromise !== undefined) {
+            playPromise.then(function() {
+                // Audio started successfully
+            }).catch(function(error) {
+                console.log("Bell play failed:", error);
+            });
+        }
 
-        var durasi_bell = (bell.duration || 2) * 770;
+        var durasi_bell = (bell.duration || 0.5) * 1000;
 
         setTimeout(function() {
-            responsiveVoice.speak("Nomor Antrian, " + value.antrian + ", menuju, loket, " + value.loket, "Indonesian Female", {
-                rate: 0.9,
-                pitch: 1,
-                volume: 1,
-                onend: function() {
-                    queuePanggal.shift();
-                    queuePanggil.splice(0, 1);
-                    isPlay = false;
-                    delete_panggilan(value.id);
-                    if (queuePanggil.length > 0) panggilAntrian();
-                }
-            });
+            if (typeof responsiveVoice !== 'undefined') {
+                responsiveVoice.speak("Nomor Antrian, " + value.antrian + ", menuju, loket, " + value.loket, "Indonesian Female", {
+                    rate: 0.9,
+                    pitch: 1,
+                    volume: 1,
+                    onend: function() {
+                        queuePanggil.shift();
+                        isPlay = false;
+                        delete_panggilan(value.id);
+                        if (queuePanggil.length > 0) panggilAntrian();
+                    }
+                });
+            } else {
+                console.log("responsiveVoice not loaded");
+                queuePanggil.shift();
+                isPlay = false;
+                delete_panggilan(value.id);
+                if (queuePanggil.length > 0) panggilAntrian();
+            }
         }, durasi_bell);
     }
 

@@ -12,6 +12,7 @@ function cetak($noAntrian): bool
 
     try {
         $connector = new WindowsPrintConnector("smb://host.docker.internal/pos-80");
+       # $connector = new NetworkPrintConnector("192.168.1.50", 9100);
         $printer = new Printer($connector);
 
         $printer->setJustification(Printer::JUSTIFY_CENTER);
