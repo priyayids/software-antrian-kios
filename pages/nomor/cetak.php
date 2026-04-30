@@ -4,15 +4,29 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 use Mike42\Escpos\Printer;
 use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
+use Mike42\Escpos\PrintConnectors\NetworkPrintConnector;
 
 function cetak($noAntrian): bool
 {
     $connector = null;
     $printer = null;
 
+    $printerConfig = getenv('PRINTER_ENABLED') ?: 'false';
+    $printerType = getenv('PRINTER_TYPE') ?: 'network';
+    $printerHost = getenv('PRINTER_HOST') ?: '192.168.1.50';
+    $printerPort = (int)(getenv('PRINTER_PORT') ?: '9100');
+    $printerShare = getenv('PRINTER_SHARE') ?: 'pos-80';
+
+    if (strtolower($printerConfig) !== 'true') {
+        return false;
+    }
+
     try {
-        $connector = new WindowsPrintConnector("smb://host.docker.internal/pos-80");
-       # $connector = new NetworkPrintConnector("192.168.1.50", 9100);
+        if ($printerType === 'network') {
+            $connector = new NetworkPrintConnector($printerHost, $printerPort);
+        } else {
+            $connector = new WindowsPrintConnector("smb://host.docker.internal/" . $printerShare);
+        }
         $printer = new Printer($connector);
 
         $printer->setJustification(Printer::JUSTIFY_CENTER);

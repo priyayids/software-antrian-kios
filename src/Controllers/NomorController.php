@@ -42,14 +42,14 @@ class NomorController
         $tanggal = getToday();
         $result = $this->queue->create($tanggal);
 
-        $printSuccess = true;
+        $printSuccess = false;
 
         try {
             $cetakFile = __DIR__ . '/../../pages/nomor/cetak.php';
             if (file_exists($cetakFile)) {
                 require_once $cetakFile;
                 if (function_exists('cetak')) {
-                    cetak($result['no_antrian']);
+                    $printSuccess = cetak($result['no_antrian']);
                 }
             }
         } catch (\Exception $e) {
