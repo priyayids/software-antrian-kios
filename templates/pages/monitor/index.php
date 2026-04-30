@@ -18,6 +18,9 @@ $email = $settingsData['email'] ?? '';
 <div class="monitor-wrapper" style="background-color: <?= htmlspecialchars($warnaBackground) ?>;">
     <header class="monitor-header" style="background-color: <?= htmlspecialchars($warnaPrimary) ?>;">
         <div class="d-flex align-items-center gap-3">
+            <a href="/" class="text-decoration-none" style="color: <?= htmlspecialchars($warnaText) ?>;" title="Kembali ke Beranda">
+                <i class="bi-house-fill" style="font-size: 1.5rem;"></i>
+            </a>
             <i class="bi-display-fill" style="color: <?= htmlspecialchars($warnaText) ?>; font-size: 1.5rem;"></i>
             <span class="fs-4 fw-bold" style="color: <?= htmlspecialchars($warnaText) ?>">Monitor Antrian Pendaftaran</span>
         </div>
@@ -53,7 +56,7 @@ $email = $settingsData['email'] ?? '';
             <div class="row g-4">
                 <div class="col-lg-8">
                     <div class="video-container rounded-3 overflow-hidden shadow-lg">
-                        <iframe width="100%" height="450" src="https://www.youtube.com/embed/<?= htmlspecialchars($youtubeId) ?>?rel=0&modestbranding=1&autohide=1&showinfo=0&controls=1&loop=1&autoplay=1&playlist=<?= htmlspecialchars($youtubeId) ?>" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                        <iframe id="youtube-player" width="100%" height="450" src="https://www.youtube.com/embed/<?= htmlspecialchars($youtubeId) ?>?rel=0&modestbranding=1&autohide=1&showinfo=0&controls=1&loop=1&autoplay=1&playlist=<?= htmlspecialchars($youtubeId) ?>&enablejsapi=1" frameborder="0" allow="autoplay; encrypted-media; allowfullscreen"></iframe>
                     </div>
                 </div>
 
@@ -114,10 +117,42 @@ $email = $settingsData['email'] ?? '';
 <?php
 $content = ob_get_clean();
 $inlineScript = <<<JS
+var player;
+var youTubeMuted = false;
+
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player('youtube-player', {
+        events: {
+            'onReady': function(event) {
+                player.setVolume(100);
+            }
+        }
+    });
+}
+
+var tag = document.createElement('script');
+tag.src = 'https://www.youtube.com/iframe_api';
+var firstScriptTag = document.getElementsByTagName('script')[0];
+firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
 $(document).ready(function() {
     var bell = document.getElementById('tingtung');
     var queuePanggil = [];
     var isPlay = false;
+
+    function muteYouTube() {
+        if (player && player.getVolume && player.getVolume() > 0) {
+            youTubeMuted = true;
+            player.mute();
+        }
+    }
+
+    function unmuteYouTube() {
+        if (player && youTubeMuted) {
+            player.unmute();
+            youTubeMuted = false;
+        }
+    }
 
     const checkQueuePanggil = (key, arrayOfQueue) => {
         return arrayOfQueue.some(q => q.id === key);
@@ -185,6 +220,8 @@ $(document).ready(function() {
         var value = queuePanggil[0];
         isPlay = true;
 
+        muteYouTube();
+
         $("#antrian-sekarang").fadeOut(300, function() {
             $(this).text(value.antrian).fadeIn(300);
         });
@@ -195,7 +232,6 @@ $(document).ready(function() {
         var playPromise = bell.play();
         if (playPromise !== undefined) {
             playPromise.then(function() {
-                // Audio started successfully
             }).catch(function(error) {
                 console.log("Bell play failed:", error);
             });
@@ -213,6 +249,7 @@ $(document).ready(function() {
                         queuePanggil.shift();
                         isPlay = false;
                         delete_panggilan(value.id);
+                        unmuteYouTube();
                         if (queuePanggil.length > 0) panggilAntrian();
                     }
                 });
@@ -221,6 +258,7 @@ $(document).ready(function() {
                 queuePanggil.shift();
                 isPlay = false;
                 delete_panggilan(value.id);
+                unmuteYouTube();
                 if (queuePanggil.length > 0) panggilAntrian();
             }
         }, durasi_bell);
