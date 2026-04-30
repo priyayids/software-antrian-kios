@@ -11,18 +11,19 @@ function cetak($noAntrian): bool
     $connector = null;
     $printer = null;
 
-    $printerConfig = getenv('PRINTER_ENABLED') ?: 'true';
-    $printerType = getenv('PRINTER_TYPE') ?: 'network';
-    $printerHost = getenv('PRINTER_HOST') ?: '192.168.1.50';
-    $printerPort = (int)(getenv('PRINTER_PORT') ?: '9100');
-    $printerShare = getenv('PRINTER_SHARE') ?: 'pos-80';
+    $printerHost = getenv('PRINTER_HOST');
+    $printerShare = getenv('PRINTER_SHARE');
 
-    if (strtolower($printerConfig) !== 'true') {
+    $useNetwork = !empty($printerHost);
+    $useWindows = !empty($printerShare);
+
+    if (!$useNetwork && !$useWindows) {
         return false;
     }
 
     try {
-        if ($printerType === 'network') {
+        if ($useNetwork) {
+            $printerPort = (int)(getenv('PRINTER_PORT') ?: '9100');
             $connector = new NetworkPrintConnector($printerHost, $printerPort);
         } else {
             $connector = new WindowsPrintConnector("smb://host.docker.internal/" . $printerShare);
