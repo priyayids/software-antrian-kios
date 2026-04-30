@@ -6,3 +6,4 @@ composer.lock
 .vscode/
 public/storage/uploads/*
 !public/storage/uploads/.gitkeep
+.env
