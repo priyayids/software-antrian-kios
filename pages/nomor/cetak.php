@@ -11,7 +11,7 @@ function cetak($noAntrian): bool
     $connector = null;
     $printer = null;
 
-    $printerConfig = getenv('PRINTER_ENABLED') ?: 'false';
+    $printerConfig = getenv('PRINTER_ENABLED') ?: 'true';
     $printerType = getenv('PRINTER_TYPE') ?: 'network';
     $printerHost = getenv('PRINTER_HOST') ?: '192.168.1.50';
     $printerPort = (int)(getenv('PRINTER_PORT') ?: '9100');
