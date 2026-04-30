@@ -119,7 +119,6 @@ $content = ob_get_clean();
 $inlineScript = <<<JS
 var player;
 var youTubeReady = false;
-var youTubeWasMuted = false;
 
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('youtube-player', {
@@ -141,21 +140,19 @@ $(document).ready(function() {
     var bell = document.getElementById('tingtung');
     var queuePanggil = [];
     var isPlay = false;
+    var wasPlaying = false;
 
-    function muteYouTube() {
-        if (player && youTubeReady) {
-            var vol = player.getVolume();
-            if (vol > 0) {
-                youTubeWasMuted = true;
-                player.mute();
-            }
+    function pauseYouTube() {
+        if (player && youTubeReady && player.getPlayerState() === YT.PlayerState.PLAYING) {
+            wasPlaying = true;
+            player.pauseVideo();
         }
     }
 
-    function unmuteYouTube() {
-        if (player && youTubeReady && youTubeWasMuted) {
-            player.unmute();
-            youTubeWasMuted = false;
+    function playYouTube() {
+        if (player && youTubeReady && wasPlaying) {
+            player.playVideo();
+            wasPlaying = false;
         }
     }
 
@@ -225,7 +222,7 @@ $(document).ready(function() {
         var value = queuePanggil[0];
         isPlay = true;
 
-        muteYouTube();
+        pauseYouTube();
 
         $("#antrian-sekarang").fadeOut(300, function() {
             $(this).text(value.antrian).fadeIn(300);
@@ -254,7 +251,7 @@ $(document).ready(function() {
                         queuePanggil.shift();
                         isPlay = false;
                         delete_panggilan(value.id);
-                        unmuteYouTube();
+                        playYouTube();
                         if (queuePanggil.length > 0) panggilAntrian();
                     }
                 });
@@ -263,7 +260,7 @@ $(document).ready(function() {
                 queuePanggil.shift();
                 isPlay = false;
                 delete_panggilan(value.id);
-                unmuteYouTube();
+                playYouTube();
                 if (queuePanggil.length > 0) panggilAntrian();
             }
         }, durasi_bell);
