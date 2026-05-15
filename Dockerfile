@@ -25,6 +25,7 @@ RUN git config --global --add safe.directory /var/www/html \
 RUN mkdir -p /var/www/html/public/storage/uploads \
     && cp "/var/www/html/assets/img/NISCAYA LOGO.png" /var/www/html/public/storage/uploads/ \
     && cp -r /var/www/html/assets /var/www/html/public/assets \
+    && cp "/var/www/html/assets/img/favicon.ico" /var/www/html/public/favicon.ico \
     && chown -R www-data:www-data /var/www/html/public/storage \
     && chmod -R 775 /var/www/html/public/storage \
     && chown -R www-data:www-data /var/www/html \
