@@ -52,5 +52,5 @@ if [ $? -ne 0 ]; then
     echo "Database initialized successfully."
 fi
 
-echo "Starting Apache..."
-exec apache2-foreground
+echo "Starting PHP-FPM..."
+exec php-fpm

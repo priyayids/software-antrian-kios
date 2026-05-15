@@ -1,4 +1,4 @@
-FROM php:8.2-apache
+FROM php:8.2-fpm
 
 RUN apt-get update && apt-get install -y \
     default-mysql-client \
@@ -12,11 +12,7 @@ RUN apt-get update && apt-get install -y \
     && pecl install smbclient \
     && docker-php-ext-enable smbclient
 
-RUN a2enmod rewrite headers
-
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
-COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
 
 COPY database/docker-init.sh /usr/local/bin/docker-init.sh
 RUN chmod +x /usr/local/bin/docker-init.sh
@@ -36,4 +32,4 @@ RUN mkdir -p /var/www/html/public/storage/uploads \
 
 CMD ["/usr/local/bin/docker-init.sh"]
 
-EXPOSE 80
+EXPOSE 9000
