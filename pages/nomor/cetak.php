@@ -11,24 +11,46 @@ function cetak($noAntrian): bool
     $connector = null;
     $printer = null;
 
-    $printerHost = getenv('PRINTER_HOST');
+    $printerHost  = getenv('PRINTER_HOST');
     $printerShare = getenv('PRINTER_SHARE');
+    $printerUser  = getenv('PRINTER_USER');
+    $printerPass  = getenv('PRINTER_PASSWORD');
+
+    // LOG: env values
+    error_log("[PRINTER] HOST: " . ($printerHost ?: 'empty'));
+    error_log("[PRINTER] SHARE: " . ($printerShare ?: 'empty'));
+    error_log("[PRINTER] USER: " . ($printerUser ?: 'empty'));
+    error_log("[PRINTER] PASS: " . ($printerPass ? '***set***' : 'empty'));
 
     $useNetwork = !empty($printerHost);
     $useWindows = !empty($printerShare);
 
+    error_log("[PRINTER] Mode: " . ($useNetwork ? 'NETWORK' : ($useWindows ? 'WINDOWS SMB' : 'NONE')));
+
     if (!$useNetwork && !$useWindows) {
+        error_log("[PRINTER] ERROR: No printer configured, both HOST and SHARE are empty");
         return false;
     }
 
     try {
         if ($useNetwork) {
             $printerPort = (int)(getenv('PRINTER_PORT') ?: '9100');
+            error_log("[PRINTER] Connecting via Network: $printerHost:$printerPort");
             $connector = new NetworkPrintConnector($printerHost, $printerPort);
         } else {
-            $connector = new WindowsPrintConnector("smb://host.docker.internal/" . $printerShare);
+            if (!empty($printerUser) && !empty($printerPass)) {
+                $smbUrl = "smb://" . urlencode($printerUser) . ":" . urlencode($printerPass) . "@host.docker.internal/" . $printerShare;
+                error_log("[PRINTER] Connecting via SMB with credentials: smb://" . urlencode($printerUser) . ":***@host.docker.internal/" . $printerShare);
+            } else {
+                $smbUrl = "smb://host.docker.internal/" . $printerShare;
+                error_log("[PRINTER] Connecting via SMB without credentials: $smbUrl");
+            }
+            $connector = new WindowsPrintConnector($smbUrl);
         }
+
+        error_log("[PRINTER] Connector created, initializing printer...");
         $printer = new Printer($connector);
+        error_log("[PRINTER] Printer initialized, starting print job...");
 
         $printer->setJustification(Printer::JUSTIFY_CENTER);
         $printer->setEmphasis(true);
@@ -78,13 +100,17 @@ function cetak($noAntrian): bool
         $printer->cut();
         $printer->close();
 
+        error_log("[PRINTER] Print job completed successfully!");
         return true;
+
     } catch (\Exception $e) {
-        error_log("Printer error: " . $e->getMessage());
+        error_log("[PRINTER] FAILED: " . $e->getMessage());
+        error_log("[PRINTER] Stack trace: " . $e->getTraceAsString());
         if ($printer) {
             try {
                 $printer->close();
             } catch (\Exception $e) {
+                error_log("[PRINTER] Failed to close printer: " . $e->getMessage());
             }
         }
         return false;
