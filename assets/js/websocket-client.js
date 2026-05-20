@@ -3,7 +3,11 @@
 
     class QueueWebSocket {
         constructor(options = {}) {
-            this.url = options.url || 'ws://localhost:8081';
+            // Use dynamic WebSocket URL based on current host
+            // This works both in development (localhost) and production (any domain)
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            this.url = options.url || `${protocol}//${host}/ws`;
             this.reconnectInterval = options.reconnectInterval || 3000;
             this.maxReconnectAttempts = options.maxReconnectAttempts || 10;
             this.reconnectAttempts = 0;
