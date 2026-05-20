@@ -52,5 +52,5 @@ if [ $? -ne 0 ]; then
     echo "Database initialized successfully."
 fi
 
-echo "Starting PHP-FPM..."
-exec php-fpm
+echo "Starting services with Supervisor (PHP-FPM + WebSocket)..."
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

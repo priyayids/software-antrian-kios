@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     git \
     smbclient \
     libsmbclient-dev \
+    supervisor \
     && docker-php-ext-install mysqli pdo pdo_mysql intl \
     && pecl install smbclient \
     && docker-php-ext-enable smbclient
@@ -15,6 +16,7 @@ RUN apt-get update && apt-get install -y \
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 COPY database/docker-init.sh /usr/local/bin/docker-init.sh
+COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 RUN chmod +x /usr/local/bin/docker-init.sh
 
 COPY . /var/www/html/

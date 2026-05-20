@@ -82,10 +82,28 @@ docker-compose up --build -d
 # Database:   localhost:3307 (external), db:3306 (internal)
 ```
 
-### Start WebSocket Server
+### WebSocket Server (Automatic)
 
+The WebSocket server is now **automatically started** when Docker containers launch. No manual intervention required!
+
+- **WebSocket runs on port 8081** (inside container)
+- **Supervisor manages both PHP-FPM and WebSocket processes**
+- **Auto-restart on failure** - Both services restart automatically if they crash
+
+**To check WebSocket status inside the container:**
 ```bash
-docker exec -it antrian_app php server.php
+docker exec -it antrian_app supervisorctl status
+```
+
+**Example output:**
+```
+php-fpm                          RUNNING   pid 42, uptime 1:23:45
+websocket                        RUNNING   pid 43, uptime 1:23:40
+```
+
+**To view WebSocket logs:**
+```bash
+docker exec -it antrian_app tail -f /var/log/supervisor/websocket.out.log
 ```
 
 ## Installation (Local)
