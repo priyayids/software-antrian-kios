@@ -8,3 +8,4 @@ public/storage/uploads/*
 !public/storage/uploads/.gitkeep
 .env
 .blackboxcli/
+/storage/reset_marker.txt

@@ -16,27 +16,42 @@ class Queue
 
     public function create(string $tanggal): array
     {
-        $noAntrian = generateQueueNumber($this->db, $tanggal);
+        $this->db->beginTransaction();
 
-        $stmt = $this->db->prepare(
-            "INSERT INTO queue_antrian_admisi (tanggal, no_antrian) VALUES (:tanggal, :no_antrian)"
-        );
-        $stmt->execute([
-            'tanggal' => $tanggal,
-            'no_antrian' => $noAntrian,
-        ]);
+        try {
+            $stmt = $this->db->prepare(
+                "SELECT MAX(no_antrian) as nomor FROM queue_antrian_admisi WHERE tanggal = :tanggal AND deleted = 0 FOR UPDATE"
+            );
+            $stmt->execute(['tanggal' => $tanggal]);
+            $row = $stmt->fetch();
 
-        return [
-            'id' => (int)$this->db->lastInsertId(),
-            'no_antrian' => $noAntrian,
-            'tanggal' => $tanggal,
-        ];
+            $noAntrian = ($row && $row['nomor']) ? sprintf("%03d", (int)$row['nomor'] + 1) : '001';
+
+            $stmt = $this->db->prepare(
+                "INSERT INTO queue_antrian_admisi (tanggal, no_antrian) VALUES (:tanggal, :no_antrian)"
+            );
+            $stmt->execute([
+                'tanggal' => $tanggal,
+                'no_antrian' => $noAntrian,
+            ]);
+
+            $this->db->commit();
+
+            return [
+                'id' => (int)$this->db->lastInsertId(),
+                'no_antrian' => $noAntrian,
+                'tanggal' => $tanggal,
+            ];
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
     }
 
     public function getLatestNumber(string $tanggal): ?string
     {
         $stmt = $this->db->prepare(
-            "SELECT MAX(no_antrian) as jumlah FROM queue_antrian_admisi WHERE tanggal = :tanggal"
+            "SELECT MAX(no_antrian) as jumlah FROM queue_antrian_admisi WHERE tanggal = :tanggal AND deleted = 0"
         );
         $stmt->execute(['tanggal' => $tanggal]);
         $row = $stmt->fetch();
@@ -47,7 +62,7 @@ class Queue
     public function getNextNumber(string $tanggal): string
     {
         $stmt = $this->db->prepare(
-            "SELECT MAX(no_antrian) as nomor FROM queue_antrian_admisi WHERE tanggal = :tanggal"
+            "SELECT MAX(no_antrian) as nomor FROM queue_antrian_admisi WHERE tanggal = :tanggal AND deleted = 0"
         );
         $stmt->execute(['tanggal' => $tanggal]);
         $row = $stmt->fetch();
@@ -61,7 +76,7 @@ class Queue
     public function deleteById(int $id): bool
     {
         $stmt = $this->db->prepare(
-            "DELETE FROM queue_antrian_admisi WHERE id = :id"
+            "UPDATE queue_antrian_admisi SET deleted = 1 WHERE id = :id"
         );
         return $stmt->execute(['id' => $id]);
     }
@@ -69,7 +84,7 @@ class Queue
     public function getCount(string $tanggal): int
     {
         $stmt = $this->db->prepare(
-            "SELECT COUNT(id) as jumlah FROM queue_antrian_admisi WHERE tanggal = :tanggal"
+            "SELECT COUNT(id) as jumlah FROM queue_antrian_admisi WHERE tanggal = :tanggal AND deleted = 0"
         );
         $stmt->execute(['tanggal' => $tanggal]);
         $row = $stmt->fetch();
@@ -80,7 +95,7 @@ class Queue
     public function getRemainingCount(string $tanggal): int
     {
         $stmt = $this->db->prepare(
-            "SELECT COUNT(id) as jumlah FROM queue_antrian_admisi WHERE tanggal = :tanggal AND status = '0'"
+            "SELECT COUNT(id) as jumlah FROM queue_antrian_admisi WHERE tanggal = :tanggal AND deleted = 0 AND status = '0'"
         );
         $stmt->execute(['tanggal' => $tanggal]);
         $row = $stmt->fetch();
@@ -91,7 +106,7 @@ class Queue
     public function getCurrentServing(string $tanggal): ?string
     {
         $stmt = $this->db->prepare(
-            "SELECT no_antrian FROM queue_antrian_admisi WHERE tanggal = :tanggal AND status = '1' ORDER BY updated_date DESC LIMIT 1"
+            "SELECT no_antrian FROM queue_antrian_admisi WHERE tanggal = :tanggal AND deleted = 0 AND status = '1' ORDER BY updated_date IS NULL, updated_date DESC LIMIT 1"
         );
         $stmt->execute(['tanggal' => $tanggal]);
         $row = $stmt->fetch();
@@ -102,7 +117,7 @@ class Queue
     public function getNextQueue(string $tanggal): ?string
     {
         $stmt = $this->db->prepare(
-            "SELECT no_antrian FROM queue_antrian_admisi WHERE tanggal = :tanggal AND status = '0' ORDER BY no_antrian ASC LIMIT 1"
+            "SELECT no_antrian FROM queue_antrian_admisi WHERE tanggal = :tanggal AND deleted = 0 AND status = '0' ORDER BY no_antrian ASC LIMIT 1"
         );
         $stmt->execute(['tanggal' => $tanggal]);
         $row = $stmt->fetch();
@@ -110,10 +125,16 @@ class Queue
         return $row['no_antrian'] ?? null;
     }
 
+    public function resetDaily(): int
+    {
+        $stmt = $this->db->exec("UPDATE queue_antrian_admisi SET deleted = 1");
+        return $stmt;
+    }
+
     public function getAllToday(string $tanggal): array
     {
         $stmt = $this->db->prepare(
-            "SELECT id, no_antrian, status FROM queue_antrian_admisi WHERE tanggal = :tanggal ORDER BY id ASC"
+            "SELECT id, no_antrian, status FROM queue_antrian_admisi WHERE tanggal = :tanggal AND deleted = 0 ORDER BY id ASC"
         );
         $stmt->execute(['tanggal' => $tanggal]);
 

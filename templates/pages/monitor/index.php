@@ -8,6 +8,7 @@ $logoPath = !empty($settingsData['logo']) && file_exists(BASE_PATH . '/public/st
     ? asset('storage/uploads/' . $settingsData['logo']) . '?v=' . filemtime(BASE_PATH . '/public/storage/uploads/' . $settingsData['logo'])
     : asset('storage/uploads/NISCAYA LOGO.png');
 $youtubeId = $settingsData['youtube_id'] ?? 'Srr5BCta8UY';
+$showVideo = $youtubeId && $youtubeId !== '-';
 $runningText = $settingsData['running_text'] ?? 'SELAMAT DATANG';
 $namaInstansi = $settingsData['nama_instansi'] ?? 'ANTRIAN NISCAYA';
 $alamat = $settingsData['alamat'] ?? '';
@@ -54,13 +55,15 @@ $email = $settingsData['email'] ?? '';
             </div>
 
             <div class="row g-4">
+                <?php if ($showVideo): ?>
                 <div class="col-lg-8">
                     <div class="video-container rounded-3 overflow-hidden shadow-lg">
                         <iframe id="youtube-player" width="100%" height="450" src="https://www.youtube.com/embed/<?= htmlspecialchars($youtubeId) ?>?rel=0&modestbranding=1&autohide=1&showinfo=0&controls=1&loop=1&autoplay=1&playlist=<?= htmlspecialchars($youtubeId) ?>&enablejsapi=1" frameborder="0" allow="autoplay; encrypted-media; allowfullscreen"></iframe>
                     </div>
                 </div>
+                <?php endif; ?>
 
-                <div class="col-lg-4">
+                <div class="<?= $showVideo ? 'col-lg-4' : 'col-lg-6 offset-lg-3' ?>">
                     <div class="queue-display-section h-100 d-flex flex-column gap-3">
                         <div class="card queue-card queue-card-now bg-gradient-primary text-white">
                             <div class="card-header border-0 py-3">
@@ -104,7 +107,7 @@ $email = $settingsData['email'] ?? '';
 
     <footer class="monitor-footer" style="background-color: <?= htmlspecialchars($warnaPrimary) ?>; color: <?= htmlspecialchars($warnaText) ?>;">
         <div class="marquee-container">
-            <marquee behavior="scroll" direction="left"><b><?= htmlspecialchars($runningText) ?></b></marquee>
+            <marquee behavior="scroll" direction="left"><b class="fs-4 fw-bold"><?= htmlspecialchars($runningText) ?></b></marquee>
         </div>
         <div class="text-center small">
             copyright &copy; <?= date('Y') ?> by Niscaya
@@ -117,6 +120,7 @@ $email = $settingsData['email'] ?? '';
 <?php
 $content = ob_get_clean();
 $inlineScript = <<<JS
+<?php if ($showVideo): ?>
 var player;
 var youTubeReady = false;
 var youTubeFailed = false;
@@ -143,6 +147,7 @@ setTimeout(function() {
         console.warn('YouTube API gagal dimuat, kontrol video dinonaktifkan.');
     }
 }, 10000);
+<?php endif; ?>
 
 $(document).ready(function() {
     var bell = document.getElementById('tingtung');
@@ -161,6 +166,7 @@ $(document).ready(function() {
     document.addEventListener('click', unlockAudio);
     document.addEventListener('touchstart', unlockAudio);
 
+    <?php if ($showVideo): ?>
     function pauseYouTube() {
         if (player && youTubeReady && !youTubeFailed && player.getPlayerState() === YT.PlayerState.PLAYING) {
             wasPlaying = true;
@@ -174,6 +180,10 @@ $(document).ready(function() {
             wasPlaying = false;
         }
     }
+    <?php else: ?>
+    function pauseYouTube() {}
+    function playYouTube() {}
+    <?php endif; ?>
 
     const checkQueuePanggil = (key, arrayOfQueue) => {
         return arrayOfQueue.some(q => q.id === key);

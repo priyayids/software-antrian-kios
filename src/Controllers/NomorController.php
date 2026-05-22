@@ -40,6 +40,15 @@ class NomorController
             return;
         }
 
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $rateFile = sys_get_temp_dir() . '/rate_' . md5($ip);
+        $lastTime = @file_get_contents($rateFile);
+        if ($lastTime && (time() - (int)$lastTime) < 3) {
+            jsonResponse(['success' => false, 'message' => 'Silakan tunggu beberapa saat sebelum mengambil nomor antrian baru.'], 429);
+            return;
+        }
+        file_put_contents($rateFile, time());
+
         $printerRequired = filter_var(getenv('PRINTER_REQUIREMENT') ?: 'false', FILTER_VALIDATE_BOOLEAN);
         $tanggal = getToday();
         $result = $this->queue->create($tanggal);

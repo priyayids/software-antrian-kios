@@ -28,8 +28,7 @@ class Database
                 ]);
             } catch (PDOException $e) {
                 error_log("Database connection failed: " . $e->getMessage());
-                http_response_code(500);
-                die('Database connection failed.');
+                throw new \RuntimeException('Database connection failed. Please try again later.');
             }
         }
 

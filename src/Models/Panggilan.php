@@ -27,13 +27,19 @@ class Panggilan
 
     public function getAll(): array
     {
-        $stmt = $this->db->query("SELECT id, antrian, loket FROM queue_penggilan_antrian ORDER BY id ASC LIMIT 20");
+        $stmt = $this->db->query("SELECT id, antrian, loket FROM queue_penggilan_antrian WHERE deleted = 0 ORDER BY id ASC LIMIT 20");
         return $stmt->fetchAll();
+    }
+
+    public function reset(): bool
+    {
+        $stmt = $this->db->exec("UPDATE queue_penggilan_antrian SET deleted = 1");
+        return $stmt !== false;
     }
 
     public function delete(int $id): bool
     {
-        $stmt = $this->db->prepare("DELETE FROM queue_penggilan_antrian WHERE id = :id");
+        $stmt = $this->db->prepare("UPDATE queue_penggilan_antrian SET deleted = 1 WHERE id = :id");
         return $stmt->execute(['id' => $id]);
     }
 }

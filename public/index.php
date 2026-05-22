@@ -7,6 +7,18 @@ date_default_timezone_set('Asia/Jakarta');
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->load();
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 86400,
+        'path' => '/',
+        'domain' => '',
+        'secure' => isset($_SERVER['HTTPS']),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
+
 $app = new App\Core\App();
 
 $app->get('/', function () {
@@ -104,4 +116,22 @@ $app->post('/api/setting/save', function () {
     $controller->save();
 });
 
-$app->run();
+$app->post('/api/reset', function () {
+    $controller = new App\Controllers\ResetController();
+    $controller->reset();
+});
+
+try {
+    $app->run();
+} catch (\Throwable $e) {
+    error_log($e->getMessage());
+    http_response_code(500);
+    $isAjax = (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+        || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false);
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Terjadi kesalahan pada sistem. Silakan coba lagi.']);
+    } else {
+        require_once __DIR__ . '/../templates/errors/500.php';
+    }
+}

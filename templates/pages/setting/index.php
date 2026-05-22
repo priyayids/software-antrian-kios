@@ -89,7 +89,7 @@ $logoPath = !empty($settingsData['logo']) && file_exists(BASE_PATH . '/public/st
                             </div>
                             <div class="mb-3">
                                 <label for="youtube_id" class="form-label fw-medium">YouTube ID</label>
-                                <input type="text" class="form-control" id="youtube_id" name="youtube_id" value="<?= htmlspecialchars($settingsData['youtube_id'] ?? '') ?>" required>
+                                <input type="text" class="form-control" id="youtube_id" name="youtube_id" value="<?= htmlspecialchars($settingsData['youtube_id'] ?? '') ?>" placeholder="Kosongi atau isi - untuk menyembunyikan video">
                             </div>
                         </div>
                     </div>
@@ -186,13 +186,23 @@ $logoPath = !empty($settingsData['logo']) && file_exists(BASE_PATH . '/public/st
                         </div>
                     </div>
 
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 mb-3">
                         <button type="submit" class="btn btn-primary btn-lg flex-grow-1 rounded-pill">
                             <i class="bi-save-fill me-2"></i> Simpan
                         </button>
                         <button type="button" id="logout" class="btn btn-danger btn-lg rounded-pill">
                             <i class="bi-box-arrow-right"></i>
                         </button>
+                    </div>
+
+                    <div class="card border-0 shadow-sm" style="background-color: #fff3cd;">
+                        <div class="card-body p-3 text-center">
+                            <h6 class="fw-bold text-warning mb-2"><i class="bi-exclamation-triangle-fill"></i> Reset Antrian</h6>
+                            <p class="small text-muted mb-2">Hapus semua antrian hari ini dan bersihkan panggilan.</p>
+                            <button type="button" id="resetButton" class="btn btn-outline-warning btn-sm w-100 rounded-pill">
+                                <i class="bi-arrow-counterclockwise me-1"></i> Reset Sekarang
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -304,6 +314,56 @@ $(document).on("click", "#logout", function(e) {
             if (result.success) {
                 window.location.reload();
             }
+        }
+    });
+});
+
+$(document).on("click", "#resetButton", function(e) {
+    Swal.fire({
+        title: 'Reset Antrian?',
+        text: 'Semua antrian hari ini akan ditutup dan panggilan akan dibersihkan. Tindakan ini tidak dapat dibatalkan.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Reset!',
+        cancelButtonText: 'Batal'
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            $.ajax({
+                type: 'POST',
+                url: '/api/reset',
+                data: { csrf_token: $("input[name='csrf_token']").val() },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: response.message || 'Antrian berhasil direset.',
+                            confirmButtonColor: '#667eea',
+                            confirmButtonText: 'OK'
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: response.message || 'Terjadi kesalahan.',
+                            confirmButtonColor: '#667eea',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                },
+                error: function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Kesalahan Sistem',
+                        text: 'Terjadi kesalahan saat mereset antrian.',
+                        confirmButtonColor: '#667eea',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            });
         }
     });
 });

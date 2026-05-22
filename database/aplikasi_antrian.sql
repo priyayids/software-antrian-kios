@@ -27,8 +27,10 @@ CREATE TABLE `queue_antrian_admisi` (
   `no_antrian` varchar(3) NOT NULL,
   `status` enum('1','0') NOT NULL DEFAULT '0',
   `updated_date` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+  `deleted` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  INDEX `idx_no_antrian` (`no_antrian`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------
 -- Table structure for queue_penggilan_antrian
@@ -36,11 +38,12 @@ CREATE TABLE `queue_antrian_admisi` (
 DROP TABLE IF EXISTS `queue_penggilan_antrian`;
 CREATE TABLE `queue_penggilan_antrian` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `antrian` varchar(255) DEFAULT NULL,
+  `antrian` varchar(3) DEFAULT NULL,
   `loket` varchar(255) DEFAULT NULL,
+  `deleted` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  KEY `Fk_antrian` (`antrian`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  CONSTRAINT `fk_panggilan_antrian` FOREIGN KEY (`antrian`) REFERENCES `queue_antrian_admisi` (`no_antrian`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------
 -- Records of queue_penggilan_antrian
@@ -74,7 +77,6 @@ CREATE TABLE `queue_setting` (
 -- Records of queue_setting
 -- ----------------------------
 BEGIN;
--- INSERT INTO `queue_setting` (`id`, `nama_instansi`, `logo`, `alamat`, `telpon`, `email`, `running_text`, `youtube_id`, `list_loket`, `warna_primary`, `warna_secondary`, `warna_accent`, `warna_background`, `warna_text`) VALUES (1, 'RSU SRIWIJAYA', 'logo-removebg-preview.png', 'Lorhbh', '558450845', 'ade2mail.com', 'SELAMAT DATANG DI RSU SRIWIJAYA', 'Dfzmsb_57XM', '[{\"no_loket\":\"1\",\"nama_loket\":\"Loket 1\"},{\"no_loket\":\"2\",\"nama_loket\":\"Loket 2\"},{\"no_loket\":\"3\",\"nama_loket\":\"Loket 3\"}]', '#00923f', '#c39292', '#6083a9', '#3a9862', '#ffffff');
 INSERT INTO `queue_setting` (`id`, `nama_instansi`, `logo`, `alamat`, `telpon`, `email`, `running_text`, `youtube_id`, `list_loket`, `warna_primary`, `warna_secondary`, `warna_accent`, `warna_background`, `warna_text`) VALUES (1, 'PT NISCAYA UNGGUL NUSANTARA', 'NISCAYA LOGO.png', 'Rukan graha mas Jl. Pejuangan No.C 11, RT.1/RW.7, Kebon Jeruk, Kebonjeruk, West Jakarta City, Jakarta 11520', '558450845', 'priyayi@cubeteknologi.com', 'SELAMAT DATANG', 'Srr5BCta8UY', '[{"no_loket":"1","nama_loket":"LOKET 1"},{"no_loket":"2","nama_loket":"LOKET 2"},{"no_loket":"3","nama_loket":"LOKET 3"}]', '#020202', '#ffffff', '#6083a9', '#ffffff', '#ffffff');
 COMMIT;
 

@@ -30,7 +30,8 @@ if (!function_exists('jsonResponse')) {
     {
         http_response_code($statusCode);
         header('Content-Type: application/json');
-        header('Access-Control-Allow-Origin: *');
+        $allowedOrigin = getenv('APP_URL') ?: '*';
+        header('Access-Control-Allow-Origin: ' . $allowedOrigin);
         header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, Authorization');
         echo json_encode($data);
@@ -126,7 +127,7 @@ if (!function_exists('bulanIndo')) {
 if (!function_exists('generateQueueNumber')) {
     function generateQueueNumber(\PDO $db, string $tanggal): string
     {
-        $stmt = $db->prepare("SELECT MAX(no_antrian) as nomor FROM queue_antrian_admisi WHERE tanggal = :tanggal");
+        $stmt = $db->prepare("SELECT MAX(no_antrian) as nomor FROM queue_antrian_admisi WHERE tanggal = :tanggal AND deleted = 0");
         $stmt->execute(['tanggal' => $tanggal]);
         $row = $stmt->fetch();
 

@@ -15,10 +15,6 @@ class SettingController
 
     public function index(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
         $loginError = $_SESSION['login_error'] ?? null;
         unset($_SESSION['login_error']);
 
@@ -39,10 +35,6 @@ class SettingController
 
     public function login(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
         unset($_SESSION['login_error']);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -58,6 +50,7 @@ class SettingController
 
         if (!empty($usernameInput) && !empty($passwordInput)) {
             if ($usernameInput === $adminUsername && $passwordInput === $adminPassword) {
+                session_regenerate_id(true);
                 $_SESSION['username'] = $usernameInput;
                 redirect(url('setting'));
             } else {
@@ -72,20 +65,12 @@ class SettingController
 
     public function logout(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
         session_destroy();
         jsonResponse(['success' => true]);
     }
 
     public function save(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
         if (!isset($_SESSION['username'])) {
             jsonResponse(['success' => false, 'message' => 'Anda tidak memiliki akses untuk melakukan tindakan ini.'], 401);
             return;
@@ -153,9 +138,9 @@ class SettingController
                 mkdir($targetDirectory, 0755, true);
             }
 
-            $fileName = basename($_FILES['logo']['name']);
-            $targetFile = $targetDirectory . $fileName;
-            $fileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
+    $fileType = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
+    $fileName = bin2hex(random_bytes(16)) . '.' . $fileType;
+    $targetFile = $targetDirectory . $fileName;
 
             if ($_FILES['logo']['size'] > 2000000) {
                 jsonResponse(['success' => false, 'message' => 'Ukuran file terlalu besar. Maksimal 2MB.']);
