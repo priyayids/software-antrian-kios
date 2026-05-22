@@ -4,8 +4,8 @@ $settingsData = $settings ?? [];
 $warnaBackground = $settingsData['warna_background'] ?? '#1a1a2e';
 $warnaPrimary = $settingsData['warna_primary'] ?? '#16213e';
 $warnaText = $settingsData['warna_text'] ?? '#ffffff';
-$logoPath = !empty($settingsData['logo']) && file_exists(__DIR__ . '/../../public/storage/uploads/' . $settingsData['logo'])
-    ? asset('storage/uploads/' . $settingsData['logo'])
+$logoPath = !empty($settingsData['logo']) && file_exists(BASE_PATH . '/public/storage/uploads/' . $settingsData['logo'])
+    ? asset('storage/uploads/' . $settingsData['logo']) . '?v=' . filemtime(BASE_PATH . '/public/storage/uploads/' . $settingsData['logo'])
     : asset('storage/uploads/NISCAYA LOGO.png');
 $youtubeId = $settingsData['youtube_id'] ?? 'Srr5BCta8UY';
 $runningText = $settingsData['running_text'] ?? 'SELAMAT DATANG';
@@ -27,7 +27,7 @@ $email = $settingsData['email'] ?? '';
         <div class="d-flex align-items-center gap-4" style="color: <?= htmlspecialchars($warnaText) ?>">
             <div class="d-flex align-items-center gap-2">
                 <i class="bi-calendar3"></i>
-                <span id="date"><?= hariIndo(date('l')) . ' ' . ($hariIni->format('d F Y') ?? '') ?></span>
+                <span id="date"><?= hariIndo(date('l')) . ', ' . $hariIni->format('d') . ' ' . bulanIndo($hariIni->format('m')) . ' ' . $hariIni->format('Y') ?></span>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <i class="bi-clock"></i>
@@ -112,13 +112,14 @@ $email = $settingsData['email'] ?? '';
     </footer>
 </div>
 
-<audio id="tingtung" src="<?= asset('assets/audio/tingtung.mp3') ?>"></audio>
+<audio id="tingtung" src="<?= asset('assets/audio/tingtung.mp3') ?>" preload="metadata"></audio>
 
 <?php
 $content = ob_get_clean();
 $inlineScript = <<<JS
 var player;
 var youTubeReady = false;
+var youTubeFailed = false;
 
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('youtube-player', {
@@ -136,21 +137,39 @@ tag.src = 'https://www.youtube.com/iframe_api';
 var firstScriptTag = document.getElementsByTagName('script')[0];
 firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
+setTimeout(function() {
+    if (!youTubeReady) {
+        youTubeFailed = true;
+        console.warn('YouTube API gagal dimuat, kontrol video dinonaktifkan.');
+    }
+}, 10000);
+
 $(document).ready(function() {
     var bell = document.getElementById('tingtung');
     var queuePanggil = [];
     var isPlay = false;
     var wasPlaying = false;
+    var audioUnlocked = false;
+
+    function unlockAudio() {
+        if (audioUnlocked) return;
+        var silent = new Audio();
+        silent.play().then(function() { audioUnlocked = true; }).catch(function() {});
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+    }
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
 
     function pauseYouTube() {
-        if (player && youTubeReady && player.getPlayerState() === YT.PlayerState.PLAYING) {
+        if (player && youTubeReady && !youTubeFailed && player.getPlayerState() === YT.PlayerState.PLAYING) {
             wasPlaying = true;
             player.pauseVideo();
         }
     }
 
     function playYouTube() {
-        if (player && youTubeReady && wasPlaying) {
+        if (player && youTubeReady && !youTubeFailed && wasPlaying) {
             player.playVideo();
             wasPlaying = false;
         }
@@ -178,6 +197,9 @@ $(document).ready(function() {
                     });
                     if (newQueues.length > 0 && !isPlay) {
                         panggilAntrian();
+                    }
+                    if (queuePanggil.length > 50) {
+                        queuePanggil.splice(0, queuePanggil.length - 50);
                     }
                 }
             }
@@ -239,7 +261,7 @@ $(document).ready(function() {
             });
         }
 
-        var durasi_bell = (bell.duration || 0.5) * 1000;
+        var durasi_bell = (bell.duration && !isNaN(bell.duration) ? bell.duration : 1.5) * 1000;
 
         setTimeout(function() {
             if (typeof responsiveVoice !== 'undefined') {

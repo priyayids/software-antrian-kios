@@ -68,11 +68,16 @@ class PanggilanController
 
     public function createPanggilan(): void
     {
-        $antrian = sanitize($_POST['antrian'] ?? '');
-        $loket = sanitize($_POST['loket'] ?? '');
+        $antrian = trim($_POST['antrian'] ?? '');
+        $loket = trim($_POST['loket'] ?? '');
 
         if (empty($antrian) || empty($loket)) {
             jsonResponse(['success' => false, 'message' => 'Data tidak lengkap'], 400);
+            return;
+        }
+
+        if (!preg_match('/^\d{3}$/', $antrian)) {
+            jsonResponse(['success' => false, 'message' => 'Nomor antrian tidak valid'], 400);
             return;
         }
 

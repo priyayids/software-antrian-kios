@@ -107,7 +107,18 @@ $extraCss = ['assets/vendor/css/datatables.min.css'];
 $extraJs = ['assets/vendor/js/datatables.min.js'];
 $inlineScript = <<<JS
 $(document).ready(function() {
-    var loket = localStorage.getItem('_loket') || '-';
+    var loket = localStorage.getItem('_loket');
+    if (!loket) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Loket Belum Dipilih',
+            text: 'Silahkan pilih loket terlebih dahulu',
+            confirmButtonText: 'OK'
+        }).then(function() {
+            window.location.href = '/';
+        });
+        return;
+    }
     $(".namaLoket").html(' Loket ' + loket);
 
     function loadStats() {
@@ -155,9 +166,13 @@ $(document).ready(function() {
                     }
                     return '-';
                 }
+            },
+            {
+                "data": "id",
+                "visible": false
             }
         ],
-        "order": [[0, "desc"]],
+        "order": [[3, "desc"]],
         "iDisplayLength": 10,
     });
 
@@ -165,30 +180,68 @@ $(document).ready(function() {
         var antrian = $(this).data('antrian');
         var id = $(this).data('id');
 
-        $.ajax({
-            url: "/api/panggilan/create",
-            type: "POST",
-            dataType: 'json',
-            data: {
-                antrian: antrian,
-                loket: loket
-            },
-            success: function() {
+        Swal.fire({
+            title: 'Konfirmasi Panggilan',
+            text: 'Panggil antrian ' + antrian + '?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#198754',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, Panggil!',
+            cancelButtonText: 'Batal'
+        }).then(function(result) {
+            if (!result.isConfirmed) return;
+
+            $.ajax({
+                url: "/api/panggilan/create",
+                type: "POST",
+                dataType: 'json',
+                data: {
+                    antrian: antrian,
+                    loket: loket
+                }
+            }).done(function() {
                 $.ajax({
                     type: "POST",
                     url: "/api/panggilan/update",
                     data: { id: id }
+                }).done(function() {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: 'Antrian ' + antrian + ' dipanggil',
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                    table.ajax.reload(null, false);
+                    loadStats();
+                }).fail(function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: 'Gagal memperbarui status antrian. Silahkan coba lagi.',
+                        confirmButtonText: 'OK'
+                    });
+                    table.ajax.reload(null, false);
+                    loadStats();
                 });
-                table.ajax.reload(null, false);
-                loadStats();
-            }
+            }).fail(function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: 'Gagal membuat panggilan. Silahkan coba lagi.',
+                    confirmButtonText: 'OK'
+                });
+            });
         });
     });
 
-    setInterval(function() {
+    function autoReload() {
         table.ajax.reload(null, false);
         loadStats();
-    }, 1000);
+        setTimeout(autoReload, 4000);
+    }
+    setTimeout(autoReload, 4000);
 });
 JS;
 require __DIR__ . '/../../layouts/main.php';

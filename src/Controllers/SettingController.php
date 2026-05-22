@@ -19,12 +19,21 @@ class SettingController
             session_start();
         }
 
+        $loginError = $_SESSION['login_error'] ?? null;
+        unset($_SESSION['login_error']);
+
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
+
         $settings = $this->setting->get();
 
         view('pages.setting.index', [
             'title' => 'Setting Aplikasi',
             'settings' => $settings,
             'isLoggedIn' => isset($_SESSION['username']),
+            'loginError' => $loginError,
+            'csrfToken' => $_SESSION['csrf_token'],
         ]);
     }
 
@@ -33,6 +42,8 @@ class SettingController
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
+
+        unset($_SESSION['login_error']);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirect(url('setting'));
@@ -66,7 +77,7 @@ class SettingController
         }
 
         session_destroy();
-        echo "Success";
+        jsonResponse(['success' => true]);
     }
 
     public function save(): void
@@ -85,7 +96,39 @@ class SettingController
             return;
         }
 
-        $data = sanitizeArray($_POST);
+        $submittedToken = $_POST['csrf_token'] ?? '';
+        if (empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $submittedToken)) {
+            jsonResponse(['success' => false, 'message' => 'Token CSRF tidak valid. Silakan muat ulang halaman.'], 403);
+            return;
+        }
+
+        $data = [
+            'id' => $_POST['id'] ?? '',
+            'nama_instansi' => sanitizeForStorage($_POST['nama_instansi'] ?? ''),
+            'alamat' => sanitizeForStorage($_POST['alamat'] ?? ''),
+            'telpon' => sanitizeForStorage($_POST['telpon'] ?? ''),
+            'email' => sanitizeForStorage($_POST['email'] ?? ''),
+            'running_text' => sanitizeForStorage($_POST['running_text'] ?? ''),
+            'youtube_id' => sanitizeForStorage($_POST['youtube_id'] ?? ''),
+            'warna_primary' => sanitizeForStorage($_POST['warna_primary'] ?? ''),
+            'warna_secondary' => sanitizeForStorage($_POST['warna_secondary'] ?? ''),
+            'warna_accent' => sanitizeForStorage($_POST['warna_accent'] ?? ''),
+            'warna_background' => sanitizeForStorage($_POST['warna_background'] ?? ''),
+            'warna_text' => sanitizeForStorage($_POST['warna_text'] ?? ''),
+        ];
+
+        $colorDefaults = [
+            'warna_primary' => '#00923f',
+            'warna_secondary' => '#1dedae',
+            'warna_accent' => '#6083a9',
+            'warna_background' => '#5dee9c',
+            'warna_text' => '#ffffff',
+        ];
+        foreach ($colorDefaults as $key => $default) {
+            if (empty($data[$key])) {
+                $data[$key] = $default;
+            }
+        }
 
         $noLoket = $_POST['no_loket'] ?? [];
         $namaLoket = $_POST['nama_loket'] ?? [];
@@ -102,10 +145,10 @@ class SettingController
 
         $data['list_loket'] = json_encode($loket);
 
-        $logo = $data['nama_logo'] ?? '';
+        $logo = sanitizeForStorage($_POST['nama_logo'] ?? '');
 
         if (isset($_FILES['logo']) && $_FILES['logo']['error'] !== 4) {
-            $targetDirectory = __DIR__ . '/../../public/storage/uploads/';
+            $targetDirectory = BASE_PATH . '/public/storage/uploads/';
             if (!is_dir($targetDirectory)) {
                 mkdir($targetDirectory, 0755, true);
             }
@@ -138,7 +181,7 @@ class SettingController
             $result = $this->setting->save($data);
 
             if ($result) {
-                jsonResponse(['success' => true, 'message' => 'Pengaturan berhasil disimpan.']);
+                jsonResponse(['success' => true, 'message' => 'Pengaturan berhasil disimpan.', 'filename' => $logo]);
             } else {
                 jsonResponse(['success' => false, 'message' => 'Gagal menyimpan pengaturan. Terjadi kesalahan pada database.']);
             }

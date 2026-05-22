@@ -2,16 +2,10 @@
 ob_start();
 $settingsData = $settings ?? [];
 $listLoket = !empty($settingsData['list_loket']) ? json_decode($settingsData['list_loket'], true) : [];
-$logoPath = !empty($settingsData['logo']) && file_exists(__DIR__ . '/../../public/storage/uploads/' . $settingsData['logo'])
-    ? asset('storage/uploads/' . $settingsData['logo'])
+$logoPath = !empty($settingsData['logo']) && file_exists(BASE_PATH . '/public/storage/uploads/' . $settingsData['logo'])
+    ? asset('storage/uploads/' . $settingsData['logo']) . '?v=' . filemtime(BASE_PATH . '/public/storage/uploads/' . $settingsData['logo'])
     : asset('storage/uploads/NISCAYA LOGO.png');
 
-if (isset($_SESSION['login_error'])) {
-    $loginError = $_SESSION['login_error'];
-    unset($_SESSION['login_error']);
-} else {
-    $loginError = null;
-}
 ?>
 
 <div class="container py-4">
@@ -65,6 +59,7 @@ if (isset($_SESSION['login_error'])) {
 
         <form id="saveSetting" enctype="multipart/form-data">
             <input type="hidden" name="id" value="<?= htmlspecialchars($settingsData['id'] ?? '') ?>">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken ?? '') ?>">
             <div class="row g-4">
                 <div class="col-lg-8">
                     <div class="card border-0 shadow-sm mb-4">
@@ -119,11 +114,7 @@ if (isset($_SESSION['login_error'])) {
                                                 </div>
                                             </div>
                                             <div class="col-1">
-                                                <?php if ($keyLk === 0): ?>
-                                                    <button type="button" class="btn btn-success btn-sm addLoket w-100"><i class="bi-plus-lg"></i></button>
-                                                <?php else: ?>
-                                                    <button type="button" class="btn btn-danger btn-sm deleteLoket w-100"><i class="bi-trash"></i></button>
-                                                <?php endif; ?>
+                                                <button type="button" class="btn btn-danger btn-sm deleteLoket w-100"><i class="bi-trash"></i></button>
                                             </div>
                                         </div>
                                     <?php endforeach; ?>
@@ -147,6 +138,7 @@ if (isset($_SESSION['login_error'])) {
                                     </div>
                                 <?php endif; ?>
                             </div>
+                            <button type="button" class="btn btn-outline-success btn-sm mt-2 addLoket"><i class="bi-plus-lg"></i> Tambah Loket</button>
                         </div>
                     </div>
                 </div>
@@ -168,28 +160,28 @@ if (isset($_SESSION['login_error'])) {
                             <div class="row g-3 mb-3">
                                 <div class="col-6">
                                     <label for="warna_primary" class="form-label small">Warna Primary</label>
-                                    <input type="color" class="form-control form-control-color w-100" id="warna_primary" name="warna_primary" value="<?= htmlspecialchars($settingsData['warna_primary'] ?? '#00923f') ?>" required>
+                                    <input type="color" class="form-control form-control-color w-100" id="warna_primary" name="warna_primary" value="<?= htmlspecialchars($settingsData['warna_primary'] ?? '#00923f') ?>">
                                 </div>
                                 <div class="col-6">
                                     <label for="warna_secondary" class="form-label small">Warna Secondary</label>
-                                    <input type="color" class="form-control form-control-color w-100" id="warna_secondary" name="warna_secondary" value="<?= htmlspecialchars($settingsData['warna_secondary'] ?? '#1dedae') ?>" required>
+                                    <input type="color" class="form-control form-control-color w-100" id="warna_secondary" name="warna_secondary" value="<?= htmlspecialchars($settingsData['warna_secondary'] ?? '#1dedae') ?>">
                                 </div>
                             </div>
 
                             <div class="row g-3 mb-3">
                                 <div class="col-6">
                                     <label for="warna_accent" class="form-label small">Warna Accent</label>
-                                    <input type="color" class="form-control form-control-color w-100" id="warna_accent" name="warna_accent" value="<?= htmlspecialchars($settingsData['warna_accent'] ?? '#6083a9') ?>" required>
+                                    <input type="color" class="form-control form-control-color w-100" id="warna_accent" name="warna_accent" value="<?= htmlspecialchars($settingsData['warna_accent'] ?? '#6083a9') ?>">
                                 </div>
                                 <div class="col-6">
                                     <label for="warna_background" class="form-label small">Warna Background</label>
-                                    <input type="color" class="form-control form-control-color w-100" id="warna_background" name="warna_background" value="<?= htmlspecialchars($settingsData['warna_background'] ?? '#5dee9c') ?>" required>
+                                    <input type="color" class="form-control form-control-color w-100" id="warna_background" name="warna_background" value="<?= htmlspecialchars($settingsData['warna_background'] ?? '#5dee9c') ?>">
                                 </div>
                             </div>
 
                             <div class="mb-3">
                                 <label for="warna_text" class="form-label small">Warna Text</label>
-                                <input type="color" class="form-control form-control-color w-100" id="warna_text" name="warna_text" value="<?= htmlspecialchars($settingsData['warna_text'] ?? '#ffffff') ?>" required>
+                                    <input type="color" class="form-control form-control-color w-100" id="warna_text" name="warna_text" value="<?= htmlspecialchars($settingsData['warna_text'] ?? '#ffffff') ?>">
                             </div>
                         </div>
                     </div>
@@ -263,10 +255,9 @@ $(document).on("submit", "#saveSetting", function(e) {
         dataType: 'json',
         success: function(response) {
             if (response.success) {
-                var logoFile = $("#logo")[0].files[0];
-                if (logoFile) {
-                    $("#logoPreview").attr("src", "/storage/uploads/" + logoFile.name);
-                    $("input[name='nama_logo']").val(logoFile.name);
+                if (response.filename) {
+                    $("#logoPreview").attr("src", "/storage/uploads/" + response.filename + "?v=" + Date.now());
+                    $("input[name='nama_logo']").val(response.filename);
                     $("#logo").val("");
                 }
                 Swal.fire({
@@ -308,8 +299,9 @@ $(document).on("click", "#logout", function(e) {
     $.ajax({
         type: 'POST',
         url: '/setting/logout',
+        dataType: 'json',
         success: function(result) {
-            if (result === 'Success') {
+            if (result.success) {
                 window.location.reload();
             }
         }

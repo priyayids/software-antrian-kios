@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\Queue;
 use App\Models\Setting;
+use App\Services\PrinterService;
 
 class NomorController
 {
@@ -28,8 +29,8 @@ class NomorController
     public function getAntrian(): void
     {
         $tanggal = getToday();
-        $number = $this->queue->getLatestNumber($tanggal);
-        echo $number ?? '';
+        $number = $this->queue->getNextNumber($tanggal);
+        echo $number;
     }
 
     public function insert(): void
@@ -39,22 +40,10 @@ class NomorController
             return;
         }
 
+        $printerRequired = filter_var(getenv('PRINTER_REQUIREMENT') ?: 'false', FILTER_VALIDATE_BOOLEAN);
         $tanggal = getToday();
         $result = $this->queue->create($tanggal);
-
-        $printSuccess = false;
-
-        try {
-            $cetakFile = __DIR__ . '/../../pages/nomor/cetak.php';
-            if (file_exists($cetakFile)) {
-                require_once $cetakFile;
-                if (function_exists('cetak')) {
-                    $printSuccess = cetak($result['no_antrian']);
-                }
-            }
-        } catch (\Exception $e) {
-            $printSuccess = false;
-        }
+        $printSuccess = PrinterService::print($result['no_antrian']);
 
         if ($printSuccess) {
             jsonResponse([
@@ -62,6 +51,14 @@ class NomorController
                 'no_antrian' => $result['no_antrian'],
                 'message' => 'Nomor antrian berhasil diambil.',
                 'print_status' => 'printed',
+                'printer_requirement' => $printerRequired,
+            ]);
+        } elseif ($printerRequired) {
+            $this->queue->deleteById($result['id']);
+            jsonResponse([
+                'success' => false,
+                'message' => 'Gagal mencetak tiket. Silahkan coba lagi atau hubungi petugas.',
+                'printer_requirement' => $printerRequired,
             ]);
         } else {
             jsonResponse([
@@ -69,6 +66,7 @@ class NomorController
                 'no_antrian' => $result['no_antrian'],
                 'message' => 'Nomor antrian berhasil diambil, namun printer tidak merespons. Harap hubungi petugas untuk mencetak tiket Anda.',
                 'print_status' => 'printer_error',
+                'printer_requirement' => $printerRequired,
             ]);
         }
     }

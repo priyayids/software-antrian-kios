@@ -1,0 +1,12 @@
+services:
+  nginx:
+    volumes:
+      - .:/var/www/html
+      - ./public/storage/uploads:/var/www/html/public/storage/uploads
+      - ./assets:/var/www/html/public/assets
+
+  php:
+    volumes:
+      - .:/var/www/html
+      - ./public/storage/uploads:/var/www/html/public/storage/uploads
+      - ./assets:/var/www/html/public/assets

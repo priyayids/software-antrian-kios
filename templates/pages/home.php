@@ -1,7 +1,7 @@
 <?php
 ob_start();
-$logoPath = !empty($settings['logo']) && file_exists(__DIR__ . '/../../public/storage/uploads/' . $settings['logo'])
-    ? asset('storage/uploads/' . $settings['logo'])
+$logoPath = !empty($settings['logo']) && file_exists(BASE_PATH . '/public/storage/uploads/' . $settings['logo'])
+    ? asset('storage/uploads/' . $settings['logo']) . '?v=' . filemtime(BASE_PATH . '/public/storage/uploads/' . $settings['logo'])
     : asset('storage/uploads/NISCAYA LOGO.png');
 ?>
 

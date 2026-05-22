@@ -1,9 +1,18 @@
 <?php
 
+defined('BASE_PATH') or define('BASE_PATH', dirname(__DIR__, 2));
+
 if (!function_exists('sanitize')) {
     function sanitize(string $input): string
     {
         return htmlspecialchars(strip_tags(trim($input)), ENT_QUOTES, 'UTF-8');
+    }
+}
+
+if (!function_exists('sanitizeForStorage')) {
+    function sanitizeForStorage(string $input): string
+    {
+        return strip_tags(trim($input));
     }
 }
 
@@ -131,7 +140,7 @@ if (!function_exists('generateQueueNumber')) {
 if (!function_exists('getToday')) {
     function getToday(): string
     {
-        return gmdate('Y-m-d', time() + 60 * 60 * 7);
+        return date('Y-m-d');
     }
 }
 

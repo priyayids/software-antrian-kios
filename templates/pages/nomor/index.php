@@ -1,7 +1,7 @@
 <?php
 ob_start();
-$logoPath = !empty($settings['logo']) && file_exists(__DIR__ . '/../../public/storage/uploads/' . $settings['logo'])
-    ? asset('storage/uploads/' . $settings['logo'])
+$logoPath = !empty($settings['logo']) && file_exists(BASE_PATH . '/public/storage/uploads/' . $settings['logo'])
+    ? asset('storage/uploads/' . $settings['logo']) . '?v=' . filemtime(BASE_PATH . '/public/storage/uploads/' . $settings['logo'])
     : asset('assets/img/default.png');
 ?>
 
@@ -58,16 +58,21 @@ $(document).ready(function() {
 
         var btn = $(this);
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span> Memproses...');
+        console.log('[ANTRIAN] Generating number...');
 
         $.ajax({
             type: 'POST',
             url: '/api/nomor/insert',
             dataType: 'json',
             success: function(response) {
+                console.log('[ANTRIAN] Number generated:', response.no_antrian);
+                console.log('[ANTRIAN] Printer requirement:', response.printer_requirement);
+
                 if (response.success) {
                     $('#antrian').html(response.no_antrian).fadeIn('slow');
 
                     if (response.print_status === 'printer_error') {
+                        console.log('[ANTRIAN] Print failed — number kept (requirement off)');
                         Swal.fire({
                             icon: 'warning',
                             title: 'Antrian Berhasil Diambil',
@@ -76,6 +81,7 @@ $(document).ready(function() {
                             confirmButtonText: 'Mengerti'
                         });
                     } else {
+                        console.log('[ANTRIAN] Print success');
                         Swal.fire({
                             icon: 'success',
                             title: 'Berhasil',
@@ -85,6 +91,8 @@ $(document).ready(function() {
                         });
                     }
                 } else {
+                    console.log('[ANTRIAN] Print failed — deleting number...');
+                    console.log('[ANTRIAN] Number deleted');
                     Swal.fire({
                         icon: 'error',
                         title: 'Gagal',
@@ -93,14 +101,22 @@ $(document).ready(function() {
                     });
                 }
 
+                loadAntrian();
+                console.log('[ANTRIAN] Display updated');
                 isProcessing = false;
                 btn.prop('disabled', false).html('<i class="bi-person-plus me-2"></i> Ambil Nomor');
             },
-            error: function() {
+            error: function(jqXHR) {
+                loadAntrian();
+                var msg = 'Terjadi kesalahan pada sistem. Silakan coba lagi atau hubungi IT Support.';
+                if (jqXHR.responseJSON && jqXHR.responseJSON.message) {
+                    msg = jqXHR.responseJSON.message;
+                }
+                console.log('[ANTRIAN] System error — display updated');
                 Swal.fire({
                     icon: 'error',
                     title: 'Kesalahan Sistem',
-                    text: 'Terjadi kesalahan pada sistem. Silakan coba lagi atau hubungi IT Support.',
+                    text: msg,
                     confirmButtonColor: '#667eea'
                 });
 

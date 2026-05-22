@@ -44,6 +44,28 @@ class Queue
         return $row['jumlah'] ?? null;
     }
 
+    public function getNextNumber(string $tanggal): string
+    {
+        $stmt = $this->db->prepare(
+            "SELECT MAX(no_antrian) as nomor FROM queue_antrian_admisi WHERE tanggal = :tanggal"
+        );
+        $stmt->execute(['tanggal' => $tanggal]);
+        $row = $stmt->fetch();
+
+        if ($row && $row['nomor']) {
+            return sprintf("%03d", (int)$row['nomor'] + 1);
+        }
+        return '001';
+    }
+
+    public function deleteById(int $id): bool
+    {
+        $stmt = $this->db->prepare(
+            "DELETE FROM queue_antrian_admisi WHERE id = :id"
+        );
+        return $stmt->execute(['id' => $id]);
+    }
+
     public function getCount(string $tanggal): int
     {
         $stmt = $this->db->prepare(
@@ -100,7 +122,7 @@ class Queue
 
     public function markAsServed(int $id): bool
     {
-        $updatedDate = gmdate('Y-m-d H:i:s', time() + 60 * 60 * 7);
+        $updatedDate = date('Y-m-d H:i:s');
 
         $stmt = $this->db->prepare(
             "UPDATE queue_antrian_admisi SET status = '1', updated_date = :updated_date WHERE id = :id"

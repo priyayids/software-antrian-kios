@@ -27,7 +27,7 @@ class Panggilan
 
     public function getAll(): array
     {
-        $stmt = $this->db->query("SELECT id, antrian, loket FROM queue_penggilan_antrian ORDER BY id ASC");
+        $stmt = $this->db->query("SELECT id, antrian, loket FROM queue_penggilan_antrian ORDER BY id ASC LIMIT 20");
         return $stmt->fetchAll();
     }
 
