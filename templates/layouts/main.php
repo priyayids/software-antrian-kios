@@ -38,7 +38,7 @@
     <script src="<?= asset('assets/vendor/js/jquery-3.6.0.min.js') ?>" type="text/javascript"></script>
     <script src="<?= asset('assets/vendor/js/popper.min.js') ?>" type="text/javascript"></script>
     <script src="<?= asset('assets/vendor/js/bootstrap.min.js') ?>" type="text/javascript"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" type="text/javascript"></script>
+    <script src="<?= asset('assets/vendor/js/sweetalert2.min.js') ?>" type="text/javascript"></script>
 
     <?php if (isset($extraJs)): ?>
         <?php foreach ($extraJs as $js): ?>

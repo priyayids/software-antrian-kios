@@ -40,7 +40,7 @@ $logoPath = !empty($settings['logo']) && file_exists(BASE_PATH . '/public/storag
 
 <?php
 $content = ob_get_clean();
-$inlineScript = <<<JS
+$inlineScript = <<<'JS'
 $(document).ready(function() {
     function loadAntrian() {
         $.get('/api/nomor/antrian', function(data) {
@@ -129,24 +129,50 @@ $(document).ready(function() {
         if (!navigator.usb) return false;
         var device = null;
         try {
+            // Try already-permitted devices first
             var devices = await navigator.usb.getDevices();
-            device = devices.find(function(d) { return d.productName || true; });
-            if (!device) {
-                device = await navigator.usb.requestDevice({ filters: [{ classCode: 7 }] });
+            for (var i = 0; i < devices.length; i++) {
+                var d = devices[i];
+                console.log('[ANTRIAN] Found permitted USB device:', d.productName, d.manufacturerName);
+                try {
+                    await d.open();
+                    await d.selectConfiguration(1);
+                    await d.claimInterface(0);
+                    var ep = d.configuration.interfaces[0].alternate.endpoints.find(function(e) {
+                        return e.direction === 'out' && e.type === 'bulk';
+                    });
+                    if (!ep) { await d.close(); continue; }
+                    device = d;
+                    console.log('[ANTRIAN] Using permitted device:', device.productName);
+                    break;
+                } catch (e) {
+                    console.log('[ANTRIAN] Skipping device:', d.productName, e.message);
+                    try { await d.close(); } catch (_) {}
+                }
             }
-            await device.open();
-            await device.selectConfiguration(1);
-            await device.claimInterface(0);
+            // No permitted device found, ask user to pick one
+            if (!device) {
+                device = await navigator.usb.requestDevice({ filters: [
+                    { classCode: 7 },   // Printer class
+                    { classCode: 255 }, // Vendor-specific
+                    { classCode: 2 },   // CDC Communications
+                ] });
+                console.log('[ANTRIAN] User selected device:', device.productName);
+                await device.open();
+                await device.selectConfiguration(1);
+                await device.claimInterface(0);
+            }
             var endpoint = device.configuration.interfaces[0].alternate.endpoints.find(function(e) {
                 return e.direction === 'out' && e.type === 'bulk';
             });
-            if (!endpoint) throw new Error('No bulk OUT endpoint');
+            if (!endpoint) throw new Error('No bulk OUT endpoint on ' + device.productName);
             var data = generateReceipt(number);
             await device.transferOut(endpoint.endpointNumber, data);
             await device.close();
+            console.log('[ANTRIAN] WebUSB print success');
             return true;
         } catch (e) {
-            console.log('[ANTRIAN] WebUSB failed:', e);
+            console.log('[ANTRIAN] WebUSB failed:', e.message);
             if (device) { try { await device.close(); } catch (_) {} }
             return false;
         }
@@ -176,6 +202,14 @@ $(document).ready(function() {
         return await tryRawBtLocalhost(number);
     }
 
+    function safeSwal(opts) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire(opts);
+        } else {
+            alert(opts.text || opts.title || '');
+        }
+    }
+
     // ---- Main click handler ----
     $('#insert').on('click', function() {
         if (isProcessing) return;
@@ -196,85 +230,91 @@ $(document).ready(function() {
             data: postData,
             dataType: 'json',
             success: function(response) {
-                console.log('[ANTRIAN] Number generated:', response.no_antrian);
+                try {
+                    console.log('[ANTRIAN] Number generated:', response.no_antrian);
 
-                if (response.success) {
-                    $('#antrian').html(response.no_antrian).fadeIn('slow');
+                    if (response.success) {
+                        $('#antrian').html(response.no_antrian).fadeIn('slow');
 
-                    if (response.target === 'android') {
-                        // Android mode — never delete number; try client-side fallback if server failed
-                        if (response.server_print_success) {
-                            console.log('[ANTRIAN] Android: server print succeeded');
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Berhasil',
-                                html: 'Nomor antrian Anda: <strong>' + response.no_antrian + '</strong><br><br>Silakan menunggu hingga nomor antrian Anda dipanggil.',
-                                confirmButtonColor: '#667eea',
-                                confirmButtonText: 'Mengerti'
-                            });
+                        if (response.target === 'android') {
+                            if (response.server_print_success) {
+                                console.log('[ANTRIAN] Android: server print succeeded');
+                                safeSwal({
+                                    icon: 'success',
+                                    title: 'Berhasil',
+                                    html: 'Nomor antrian Anda: <strong>' + response.no_antrian + '</strong><br><br>Silakan menunggu hingga nomor antrian Anda dipanggil.',
+                                    confirmButtonColor: '#667eea',
+                                    confirmButtonText: 'Mengerti'
+                                });
+                            } else {
+                                console.log('[ANTRIAN] Android: server print failed, trying client-side...');
+                                safeSwal({
+                                    icon: 'info',
+                                    title: 'Mencoba Mencetak...',
+                                    html: '<strong>' + response.no_antrian + '</strong><br><br>Mencetak melalui perangkat Anda...',
+                                    showConfirmButton: false,
+                                    allowOutsideClick: false
+                                });
+
+                                (async function() {
+                                    try {
+                                        var ok = await tryClientPrint(response.no_antrian);
+                                        if (typeof Swal !== 'undefined') Swal.close();
+                                        if (ok) {
+                                            safeSwal({
+                                                icon: 'success',
+                                                title: 'Berhasil',
+                                                html: 'Nomor antrian Anda: <strong>' + response.no_antrian + '</strong><br><br>Silakan menunggu hingga nomor antrian Anda dipanggil.',
+                                                confirmButtonColor: '#667eea',
+                                                confirmButtonText: 'Mengerti'
+                                            });
+                                        } else {
+                                            safeSwal({
+                                                icon: 'warning',
+                                                title: 'Antrian Berhasil Diambil',
+                                                html: 'Nomor antrian Anda: <strong>' + response.no_antrian + '</strong><br><br>Printer tidak merespons. Harap hubungi petugas untuk mencetak tiket Anda.',
+                                                confirmButtonColor: '#667eea',
+                                                confirmButtonText: 'Mengerti'
+                                            });
+                                        }
+                                    } catch (e) {
+                                        console.error('[ANTRIAN] Android client print error:', e);
+                                    }
+                                })();
+                            }
                         } else {
-                            console.log('[ANTRIAN] Android: server print failed, trying client-side...');
-                            Swal.fire({
-                                icon: 'info',
-                                title: 'Mencoba Mencetak...',
-                                html: '<strong>' + response.no_antrian + '</strong><br><br>Mencetak melalui perangkat Anda...',
-                                showConfirmButton: false,
-                                allowOutsideClick: false
-                            });
-
-                            (async function() {
-                                var ok = await tryClientPrint(response.no_antrian);
-                                Swal.close();
-                                if (ok) {
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Berhasil',
-                                        html: 'Nomor antrian Anda: <strong>' + response.no_antrian + '</strong><br><br>Silakan menunggu hingga nomor antrian Anda dipanggil.',
-                                        confirmButtonColor: '#667eea',
-                                        confirmButtonText: 'Mengerti'
-                                    });
-                                } else {
-                                    Swal.fire({
-                                        icon: 'warning',
-                                        title: 'Antrian Berhasil Diambil',
-                                        html: 'Nomor antrian Anda: <strong>' + response.no_antrian + '</strong><br><br>Printer tidak merespons. Harap hubungi petugas untuk mencetak tiket Anda.',
-                                        confirmButtonColor: '#667eea',
-                                        confirmButtonText: 'Mengerti'
-                                    });
-                                }
-                            })();
+                            if (response.print_status === 'printer_error') {
+                                console.log('[ANTRIAN] Print failed — number kept (requirement off)');
+                                safeSwal({
+                                    icon: 'warning',
+                                    title: 'Antrian Berhasil Diambil',
+                                    html: 'Nomor antrian Anda: <strong>' + response.no_antrian + '</strong><br><br>Pengambilan nomor berhasil, namun printer tidak merespons. Harap hubungi petugas untuk mencetak tiket Anda.',
+                                    confirmButtonColor: '#667eea',
+                                    confirmButtonText: 'Mengerti'
+                                });
+                            } else {
+                                console.log('[ANTRIAN] Print success');
+                                safeSwal({
+                                    icon: 'success',
+                                    title: 'Berhasil',
+                                    html: 'Nomor antrian Anda: <strong>' + response.no_antrian + '</strong><br><br>Silakan menunggu hingga nomor antrian Anda dipanggil.',
+                                    confirmButtonColor: '#667eea',
+                                    confirmButtonText: 'Mengerti'
+                                });
+                            }
                         }
                     } else {
-                        // Original non-Android behavior (unchanged)
-                        if (response.print_status === 'printer_error') {
-                            console.log('[ANTRIAN] Print failed — number kept (requirement off)');
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Antrian Berhasil Diambil',
-                                html: 'Nomor antrian Anda: <strong>' + response.no_antrian + '</strong><br><br>Pengambilan nomor berhasil, namun printer tidak merespons. Harap hubungi petugas untuk mencetak tiket Anda.',
-                                confirmButtonColor: '#667eea',
-                                confirmButtonText: 'Mengerti'
-                            });
-                        } else {
-                            console.log('[ANTRIAN] Print success');
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Berhasil',
-                                html: 'Nomor antrian Anda: <strong>' + response.no_antrian + '</strong><br><br>Silakan menunggu hingga nomor antrian Anda dipanggil.',
-                                confirmButtonColor: '#667eea',
-                                confirmButtonText: 'Mengerti'
-                            });
-                        }
+                        console.log('[ANTRIAN] Print failed — deleting number...');
+                        console.log('[ANTRIAN] Number deleted');
+                        safeSwal({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: response.message || 'Terjadi kesalahan saat mengambil nomor antrian.',
+                            confirmButtonColor: '#667eea'
+                        });
                     }
-                } else {
-                    console.log('[ANTRIAN] Print failed — deleting number...');
-                    console.log('[ANTRIAN] Number deleted');
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal',
-                        text: response.message || 'Terjadi kesalahan saat mengambil nomor antrian.',
-                        confirmButtonColor: '#667eea'
-                    });
+                } catch (e) {
+                    console.error('[ANTRIAN] Error in success handler:', e);
                 }
 
                 loadAntrian();
@@ -283,18 +323,22 @@ $(document).ready(function() {
                 btn.prop('disabled', false).html('<i class="bi-person-plus me-2"></i> Ambil Nomor');
             },
             error: function(jqXHR) {
-                loadAntrian();
-                var msg = 'Terjadi kesalahan pada sistem. Silakan coba lagi atau hubungi IT Support.';
-                if (jqXHR.responseJSON && jqXHR.responseJSON.message) {
-                    msg = jqXHR.responseJSON.message;
+                try {
+                    loadAntrian();
+                    var msg = 'Terjadi kesalahan pada sistem. Silakan coba lagi atau hubungi IT Support.';
+                    if (jqXHR.responseJSON && jqXHR.responseJSON.message) {
+                        msg = jqXHR.responseJSON.message;
+                    }
+                    console.log('[ANTRIAN] System error — display updated');
+                    safeSwal({
+                        icon: 'error',
+                        title: 'Kesalahan Sistem',
+                        text: msg,
+                        confirmButtonColor: '#667eea'
+                    });
+                } catch (e) {
+                    console.error('[ANTRIAN] Error in error handler:', e);
                 }
-                console.log('[ANTRIAN] System error — display updated');
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Kesalahan Sistem',
-                    text: msg,
-                    confirmButtonColor: '#667eea'
-                });
 
                 isProcessing = false;
                 btn.prop('disabled', false).html('<i class="bi-person-plus me-2"></i> Ambil Nomor');
