@@ -119,8 +119,11 @@ $email = $settingsData['email'] ?? '';
 
 <?php
 $content = ob_get_clean();
-$inlineScript = <<<JS
-<?php if ($showVideo): ?>
+
+$youtubeInitJs = '';
+$youtubeControlJs = 'function pauseYouTube() {} function playYouTube() {}';
+if ($showVideo) {
+    $youtubeInitJs = <<<'JS'
 var player;
 var youTubeReady = false;
 var youTubeFailed = false;
@@ -147,8 +150,25 @@ setTimeout(function() {
         console.warn('YouTube API gagal dimuat, kontrol video dinonaktifkan.');
     }
 }, 10000);
-<?php endif; ?>
+JS;
+    $youtubeControlJs = <<<'JS'
+function pauseYouTube() {
+    if (player && youTubeReady && !youTubeFailed && player.getPlayerState() === YT.PlayerState.PLAYING) {
+        wasPlaying = true;
+        player.pauseVideo();
+    }
+}
 
+function playYouTube() {
+    if (player && youTubeReady && !youTubeFailed && wasPlaying) {
+        player.playVideo();
+        wasPlaying = false;
+    }
+}
+JS;
+}
+
+$inlineScript = $youtubeInitJs . "\n\n" . <<<JS
 $(document).ready(function() {
     var bell = document.getElementById('tingtung');
     var queuePanggil = [];
@@ -166,24 +186,7 @@ $(document).ready(function() {
     document.addEventListener('click', unlockAudio);
     document.addEventListener('touchstart', unlockAudio);
 
-    <?php if ($showVideo): ?>
-    function pauseYouTube() {
-        if (player && youTubeReady && !youTubeFailed && player.getPlayerState() === YT.PlayerState.PLAYING) {
-            wasPlaying = true;
-            player.pauseVideo();
-        }
-    }
-
-    function playYouTube() {
-        if (player && youTubeReady && !youTubeFailed && wasPlaying) {
-            player.playVideo();
-            wasPlaying = false;
-        }
-    }
-    <?php else: ?>
-    function pauseYouTube() {}
-    function playYouTube() {}
-    <?php endif; ?>
+    {$youtubeControlJs}
 
     const checkQueuePanggil = (key, arrayOfQueue) => {
         return arrayOfQueue.some(q => q.id === key);
