@@ -50,8 +50,26 @@ class NomorController
         file_put_contents($rateFile, time());
 
         $printerRequired = filter_var(getenv('PRINTER_REQUIREMENT') ?: 'false', FILTER_VALIDATE_BOOLEAN);
+        $target = $_POST['target'] ?? 'default';
         $tanggal = getToday();
         $result = $this->queue->create($tanggal);
+
+        // Android mode — always keep the number, never delete
+        if ($target === 'android') {
+            $printSuccess = PrinterService::print($result['no_antrian'], 'android');
+            jsonResponse([
+                'success' => true,
+                'no_antrian' => $result['no_antrian'],
+                'server_print_success' => $printSuccess,
+                'target' => 'android',
+                'message' => $printSuccess
+                    ? 'Nomor antrian berhasil diambil dan dicetak.'
+                    : 'Nomor antrian berhasil diambil, namun printer server tidak merespons.',
+            ]);
+            return;
+        }
+
+        // Original logic (unchanged)
         $printSuccess = PrinterService::print($result['no_antrian']);
 
         if ($printSuccess) {
